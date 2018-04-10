@@ -66,7 +66,7 @@ $(BUILD)/Makefile: $(BUILD)/.patched
 	cp config.site $(BUILD)/
 	( \
 		cd $(BUILD); \
-		CONFIG_SITE=./config.site READELF=true emconfigure ./configure --without-threads --without-pymalloc --disable-shared --disable-ipv6 --without-gcc --host=asmjs-unknown-emscripten --build=$(shell $(BUILD)/config.guess) --prefix=$(INSTALL) ; \
+		EMCC_CFLAGS=$(PROFILING) CONFIG_SITE=./config.site READELF=true emconfigure ./configure --without-threads --without-pymalloc --disable-shared --disable-ipv6 --without-gcc --host=asmjs-unknown-emscripten --build=$(shell $(BUILD)/config.guess) --prefix=$(INSTALL) ; \
 	)
 
 
@@ -74,11 +74,11 @@ $(BUILD)/$(LIB): $(BUILD)/Makefile $(HOSTPYTHON) $(HOSTPGEN) Setup.local
 	cp Setup.local $(BUILD)/Modules/
 	( \
 		cd $(BUILD)/Modules/zlib; \
-		emconfigure ./configure --static \
+		EMCC_CFLAGS=$(PROFILING) emconfigure ./configure --static \
 	)
 	( \
 		cp build/$(PYVERSION)/host/lib/python$(PYMINOR)/`$(HOSTPYTHON) -c "import sysconfig; print(sysconfig._get_sysconfigdata_name())"`.py build/$(PYVERSION)/Python-$(PYVERSION)/Lib/_sysconfigdata__emscripten_.py; \
 		cd $(BUILD); \
-		emmake make HOSTPYTHON=$(HOSTPYTHON) HOSTPGEN=$(HOSTPGEN) CROSS_COMPILE=yes $(LIB) \
+	  emmake make HOSTPYTHON=$(HOSTPYTHON) HOSTPGEN=$(HOSTPGEN) CROSS_COMPILE=yes $(LIB) \
 	)
 	touch $(BUILD)/$(LIB)

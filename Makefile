@@ -11,8 +11,9 @@ HOSTPYTHON=$(CPYTHONROOT)/build/$(PYVERSION)/host/bin/python3
 CC=emcc
 CXX=em++
 OPTFLAGS=-O3
-CXXFLAGS=-std=c++14 $(OPTFLAGS) -g -I$(CPYTHONINC) -Wno-warn-absolute-paths
+CXXFLAGS=-std=c++14 $(OPTFLAGS) -g -I$(CPYTHONINC) -Wno-warn-absolute-paths $(PROFILING)
 LDFLAGS=\
+	$(PROFILING) \
 	$(CPYTHONROOT)/installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).a \
   -s "BINARYEN_METHOD='native-wasm'" \
   -s TOTAL_MEMORY=268435456 \
@@ -65,7 +66,7 @@ test: all build/test.html
 
 benchmark: all build/test.html
 	python benchmark/benchmark.py $(HOSTPYTHON) build/benchmarks.json
-	python benchmark/plot_benchmark.py benchmarks.json build/benchmarks.png
+	python benchmark/plot_benchmark.py build/benchmarks.json build/benchmarks.png
 
 
 clean:
