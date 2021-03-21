@@ -7,7 +7,7 @@ defaults: &defaults
   environment:
     - EMSDK_NUM_CORES: 4
       EMCC_CORES: 4
-      PYODIDE_BASE_URL: https://cdn.jsdelivr.net/pyodide/dev/full/
+      PYODIDE_BASE_URL: https://cdn.jsdelivr.net/pyodide/v0.17.0a1/full/
 
 jobs:
   lint:
@@ -220,39 +220,15 @@ jobs:
           command: |
             cp -r build /tmp/pyodide
             cd /tmp/
-            tar cjf pyodide-build-${CIRCLE_TAG}.tar.bz2  pyodide/
-            ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" -delete  "${CIRCLE_TAG}" ./pyodide-build-${CIRCLE_TAG}.tar.bz2
+            tar cjf pyodide-build-0.17.0a1.tar.bz2  pyodide/
+            ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" -delete  "0.17.0a1" ./pyodide-build-0.17.0a1.tar.bz2
 
       - run:
           name: Deploy to pyodide-cdn2.iodide.io
           command: |
             find build/ -type f -exec sh -c "echo \"Compressing {}\"; gzip {}; mv {}.gz {};" \;
-            aws s3 sync build/ "s3://pyodide-cdn2.iodide.io/v${CIRCLE_TAG}/full/" --exclude '*.data' --cache-control 'max-age=30758400, immutable, public' --content-encoding 'gzip'    # 1 year cache
-            aws s3 sync build/ "s3://pyodide-cdn2.iodide.io/v${CIRCLE_TAG}/full/" --exclude '*' --include '*.data' --cache-control 'max-age=30758400, immutable, public'  --content-type 'application/wasm' --content-encoding 'gzip'  # 1 year
-            # update 301 redirect for the /latest/* route.
-            aws s3api put-bucket-website --cli-input-json file://.circleci/s3-website-config.json
-
-  deploy-s3:
-    docker:
-      - image: circleci/python:3.7.7
-
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install requirements
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y groff
-            python3 -m pip install awscli
-      - run:
-          name: Deploy to pyodide-cdn2.iodide.io
-          command: |
-            find build/ -type f -exec sh -c "echo \"Compressing {}\"; gzip {}; mv {}.gz {};" \;
-            aws s3 rm --recursive "s3://pyodide-cdn2.iodide.io/dev/full/"
-            aws s3 sync build/ "s3://pyodide-cdn2.iodide.io/dev/full/" --exclude '*.data' --cache-control 'max-age=3600, public' --content-encoding 'gzip'  # 1 hour cache
-            aws s3 sync build/ "s3://pyodide-cdn2.iodide.io/dev/full/" --exclude '*' --include '*.data' --cache-control 'max-age=3600, public'  --content-type 'application/wasm' --content-encoding 'gzip'  # 1 hour cache
+            aws s3 sync build/ "s3://pyodide-cdn2.iodide.io/v0.17.0a1/full/" --exclude '*.data' --cache-control 'max-age=30758400, immutable, public' --content-encoding 'gzip'    # 1 year cache
+            aws s3 sync build/ "s3://pyodide-cdn2.iodide.io/v0.17.0a1/full/" --exclude '*' --include '*.data' --cache-control 'max-age=30758400, immutable, public'  --content-type 'application/wasm' --content-encoding 'gzip'  # 1 year
 
 workflows:
   version: 2
@@ -318,20 +294,5 @@ workflows:
             - test-emsdk
             - build-docs
           filters:
-            branches:
-              ignore: /.*/
             tags:
-              only: /^\d+\.\d+\.\d+$/
-      - deploy-s3:
-          requires:
-            - lint
-            - test-python
-            - test-core-firefox
-            - test-packages-firefox
-            - test-core-chrome
-            - test-packages-chrome
-            - test-emsdk
-            - build-docs
-          filters:
-            branches:
-              only: master
+              only: /.*/
