@@ -4,6 +4,7 @@ env:
   IMAGE_NAME: pyodide/pyodide-prebuilt-test
 jobs:
   build_docker:
+    environment: Docker
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
