@@ -25,8 +25,8 @@ jobs:
           file: ./Dockerfile-prebuilt
           push: true
           build-args: |
-            VERSION=${{ github.event.inputs.version }}
-          tags: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.version }}
+            VERSION=0.0.1
+          tags: ${{ env.IMAGE_NAME }}:0.0.1
           labels: ${{ steps.meta.outputs.labels }}
       - name: Image digest
         run: echo ${{ steps.build.outputs.digest }}
@@ -53,8 +53,8 @@ jobs:
           file: ./Dockerfile-prebuilt
           push: true
           build-args: |
-            VERSION=${{ github.event.inputs.version }}
-          tags: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.version }}
+            VERSION=0.0.1
+          tags: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:0.0.1
           labels: ${{ steps.meta.outputs.labels }}
       - name: Image digest
         run: echo ${{ steps.build.outputs.digest }}
