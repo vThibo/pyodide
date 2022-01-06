@@ -26,7 +26,7 @@ jobs:
           file: ./Dockerfile-prebuilt
           push: true
           build-args: |
-            VERSION=0.0.1
+            VERSION=19
           tags: ${{ env.IMAGE_NAME }}:0.0.1
           labels: ${{ steps.meta.outputs.labels }}
       - name: Image digest
@@ -54,7 +54,7 @@ jobs:
           file: ./Dockerfile-prebuilt
           push: true
           build-args: |
-            VERSION=0.0.1
+            VERSION=19
           tags: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:0.0.1
           labels: ${{ steps.meta.outputs.labels }}
       - name: Image digest
