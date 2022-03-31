@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-export PYMINOR=10
-
 failure_exit() {
   echo >&2 "Could not find ${1}.  Please install that before continuing."
   exit 1
