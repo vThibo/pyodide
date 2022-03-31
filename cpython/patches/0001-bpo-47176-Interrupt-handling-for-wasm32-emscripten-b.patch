@@ -1,0 +1,125 @@
+From 5e7255b53f867edfde804f8f8a0f39092b1f3e13 Mon Sep 17 00:00:00 2001
+From: Hood Chatham <roberthoodchatham@gmail.com>
+Date: Wed, 30 Mar 2022 14:50:30 -0700
+Subject: [PATCH] bpo-47176 Interrupt handling for wasm32-emscripten builds
+ without pthreads
+
+Apply suggestions from code review
+
+Co-authored-by: Christian Heimes <christian@python.org>
+
+Use EMSCRIPTEN_KEEP_ALIVE in Py_EMSCRIPTEN_SIGNAL_HANDLING, be a bit more conservative with errors in CheckEmscriptenSignals
+
+Formatting fixes
+
+More formatting fixes
+
+More formatting
+
+Add comment to #endif
+---
+ Modules/signalmodule.c | 44 ++++++++++++++++++++++++++++++++++++++++++
+ Python/ceval.c         | 22 +++++++++++++++++++++
+ 2 files changed, 66 insertions(+)
+
+diff --git a/Modules/signalmodule.c b/Modules/signalmodule.c
+index 26a1f48470..6c17dc7a47 100644
+--- a/Modules/signalmodule.c
++++ b/Modules/signalmodule.c
+@@ -1784,11 +1784,55 @@ PyErr_CheckSignals(void)
+     return _PyErr_CheckSignalsTstate(tstate);
+ }
+ 
++#if defined(__EMSCRIPTEN__)
++
++// To enable signal handling, the embedder should:
++// 1. set Module.Py_EmscriptenSignalBuffer = some_shared_array_buffer;
++// 2. set the Py_EMSCRIPTEN_SIGNAL_HANDLING flag to 1 as follows:
++//    Module.HEAP8[Module._Py_EMSCRIPTEN_SIGNAL_HANDLING] = 1
++//
++// The address &Py_EMSCRIPTEN_SIGNAL_HANDLING is exported as
++// Module._Py_EMSCRIPTEN_SIGNAL_HANDLING.
++#include <emscripten.h>
++EM_JS(int, _Py_CheckEmscriptenSignals_Helper, (void), {
++    if (!Module.Py_EmscriptenSignalBuffer) {
++        return 0;
++    }
++    try {
++        let result = Module.Py_EmscriptenSignalBuffer[0];
++        Module.Py_EmscriptenSignalBuffer[0] = 0;
++        return result;
++    } catch(e) {
++#if !defined(NDEBUG)
++        console.warn("Error occurred while trying to read signal buffer:", e);
++#endif
++        return 0;
++    }
++});
++
++void
++_Py_CheckEmscriptenSignals(void)
++{
++    int signal = _Py_CheckEmscriptenSignals_Helper();
++    if (signal) {
++        PyErr_SetInterruptEx(signal);
++    }
++}
++
++EMSCRIPTEN_KEEPALIVE int Py_EMSCRIPTEN_SIGNAL_HANDLING = 0;
++
++#endif // defined(__EMSCRIPTEN__)
+ 
+ /* Declared in cpython/pyerrors.h */
+ int
+ _PyErr_CheckSignalsTstate(PyThreadState *tstate)
+ {
++#if defined(__EMSCRIPTEN__)
++    if (Py_EMSCRIPTEN_SIGNAL_HANDLING) {
++       _Py_CheckEmscriptenSignals();
++    }
++#endif
++
+     if (!_Py_atomic_load(&is_tripped)) {
+         return 0;
+     }
+diff --git a/Python/ceval.c b/Python/ceval.c
+index 7439710ae4..bb7b5d4a5b 100644
+--- a/Python/ceval.c
++++ b/Python/ceval.c
+@@ -1296,11 +1296,33 @@ eval_frame_handle_pending(PyThreadState *tstate)
+     }
+ 
+ #define CHECK_EVAL_BREAKER() \
++    CHECK_EMSCRIPTEN_SIGNALS(); \
+     if (_Py_atomic_load_relaxed(eval_breaker)) { \
+         goto handle_eval_breaker; \
+     }
+ 
+ 
++#if defined(__EMSCRIPTEN__)
++extern int Py_EMSCRIPTEN_SIGNAL_HANDLING;
++void _Py_CheckEmscriptenSignals(void);
++
++#define PY_EMSCRIPTEN_SIGNAL_INTERVAL 50
++static int emscripten_signal_clock = PY_EMSCRIPTEN_SIGNAL_INTERVAL;
++
++static void
++CHECK_EMSCRIPTEN_SIGNALS()
++{
++    emscripten_signal_clock--;
++    if (emscripten_signal_clock == 0) {
++        emscripten_signal_clock = PY_EMSCRIPTEN_SIGNAL_INTERVAL;
++        _Py_CheckEmscriptenSignals();
++    }
++}
++#else
++#define CHECK_EMSCRIPTEN_SIGNALS()
++#endif
++
++
+ /* Tuple access macros */
+ 
+ #ifndef Py_DEBUG
+-- 
+2.25.1
+

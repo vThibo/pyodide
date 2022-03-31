@@ -1,4 +1,4 @@
-export PYVERSION ?= 3.10.2
+export PYVERSION ?= 3.11.0a6
 export PYODIDE_EMSCRIPTEN_VERSION ?= 2.0.27
 
 export PLATFORM_TRIPLET=wasm32-emscripten
@@ -56,19 +56,18 @@ export LDFLAGS_BASE=\
 	$(OPTFLAGS) \
 	$(DBGFLAGS) \
 	-s MODULARIZE=1 \
-	-s LINKABLE=1 \
 	-s EXPORT_ALL=1 \
 	-s WASM=1 \
 	-std=c++14 \
 	-s LZ4=1 \
 	-L $(CPYTHONROOT)/installs/python-$(PYVERSION)/lib/ \
+	-s ERROR_ON_UNDEFINED_SYMBOLS=0 \
 	$(EXTRA_LDFLAGS)
 
 export CXXFLAGS_BASE=
 
 export SIDE_MODULE_LDFLAGS=	$(LDFLAGS_BASE) -s SIDE_MODULE=1
 export MAIN_MODULE_LDFLAGS= $(LDFLAGS_BASE) \
-	-s MAIN_MODULE=1 \
 	-s EXPORT_NAME="'_createPyodideModule'" \
 	-s EXPORTED_FUNCTIONS='["___cxa_guard_acquire", "__ZNSt3__28ios_base4initEPv", "_main"]' \
 	-s EXCEPTION_CATCHING_ALLOWED=['we only want to allow exception handling in side modules'] \

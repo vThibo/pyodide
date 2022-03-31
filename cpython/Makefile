@@ -7,8 +7,8 @@ PYTHON_CFLAGS=$(CFLAGS_BASE)
 
 BUILD=$(ROOT)/build/Python-$(PYVERSION)
 INSTALL=$(ROOT)/installs/python-$(PYVERSION)
-TARBALL=$(ROOT)/downloads/Python-$(PYVERSION).tgz
-URL=https://www.python.org/ftp/python/$(PYVERSION)/Python-$(PYVERSION).tgz
+TARBALL=$(ROOT)/downloads/Python-$(PYVERSION).tar.xz
+URL=https://www.python.org/ftp/python/3.11.0/Python-$(PYVERSION).tar.xz
 LIB=libpython$(PYMAJOR).$(PYMINOR).a
 SYSCONFIG_NAME=_sysconfigdata__emscripten_$(PLATFORM_TRIPLET)
 
@@ -149,6 +149,7 @@ $(BUILD)/Makefile: $(BUILD)/.patched $(ZLIBBUILD)/.configured $(INSTALL)/lib/lib
 			  --host=wasm32-unknown-emscripten\
 			  --build=$(shell $(BUILD)/config.guess) \
 			  --prefix=$(INSTALL)  \
+			  --with-build-python=/python3.11/python \
 	)
 
 

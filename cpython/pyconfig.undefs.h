@@ -29,7 +29,7 @@
 #undef HAVE_SYS_IOCTL_H
 
 /* Unsupported functionality */
-#undef HAVE_PTHREAD_H
+//#undef HAVE_PTHREAD_H
 
 #define CONFIG_32
 #define ANSI
