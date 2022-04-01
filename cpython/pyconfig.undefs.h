@@ -33,3 +33,6 @@
 
 #define CONFIG_32
 #define ANSI
+
+#undef HAVE_GETPWNAM_R
+#undef HAVE_GETPWUID_R
