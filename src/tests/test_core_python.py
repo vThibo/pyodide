@@ -53,6 +53,8 @@ def test_cpython_core(main_test, selenium, request):
                 f"""
             import platform
             from test import libregrtest
+            import faulthandler
+            faulthandler.dump_traceback_later = lambda *args, **kwargs: None
 
             platform.platform(aliased=True)
             import _testcapi
