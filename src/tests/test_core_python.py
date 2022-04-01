@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 import yaml
-from yaml import CLoader as Loader
+from yaml import Loader
 
 from pyodide_build.common import UNVENDORED_STDLIB_MODULES
 
