@@ -23,3 +23,8 @@ _posixsubprocess _posixsubprocess.c
 
 
 _xxsubinterpreters _xxsubinterpretersmodule.c
+
+*disabled*
+pwd
+_decimal
+pyexpat
