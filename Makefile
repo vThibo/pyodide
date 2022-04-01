@@ -201,14 +201,13 @@ build/test.tar: $(CPYTHONLIB) node_modules/.installed
 
 	for testname in $(TEST_EXTENSIONS); do \
 		cd $(CPYTHONBUILD) && \
-		emcc Modules/$${testname%.*}.o -o $$testname $(SIDE_MODULE_LDFLAGS) && \
-		ln -s $(CPYTHONBUILD)/$$testname $(CPYTHONLIB)/$$testname ; \
+		emcc Modules/$${testname%.*}.o -o Lib/$$testname $(SIDE_MODULE_LDFLAGS) ; \
 	done
 
-	# cd $(CPYTHONLIB) && tar -h --exclude=__pycache__ -cf $(PYODIDE_ROOT)/build/test.tar \
-	# 	test $(TEST_EXTENSIONS) unittest/test sqlite3/test ctypes/test
+	cd $(CPYTHONBUILD)/Lib && tar -h --exclude=__pycache__ -cf $(PYODIDE_ROOT)/build/test.tar \
+		test $(TEST_EXTENSIONS) unittest/test ctypes/test
 
-	# cd $(CPYTHONLIB) && rm $(TEST_EXTENSIONS)
+	cd $(CPYTHONBUILD)/Lib && rm $(TEST_EXTENSIONS)
 
 
 build/distutils.tar: $(CPYTHONLIB) node_modules/.installed
