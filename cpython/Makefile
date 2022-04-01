@@ -136,7 +136,7 @@ $(BUILD)/Makefile: $(BUILD)/.patched $(ZLIBBUILD)/.configured $(INSTALL)/lib/lib
 	cp config.site-wasm32-emscripten $(BUILD)/
 	( \
 		cd $(BUILD); \
-		CONFIG_SITE=./config.site-wasm32-emscripten READELF=true emconfigure \
+		CONFIG_SITE=./config.site-wasm32-emscripten emconfigure \
 		  ./configure \
 			  CFLAGS="${PYTHON_CFLAGS}" \
 			  CPPFLAGS="-I$(SQLITEBUILD) -I$(BZIP2BUILD) -I$(ZLIBBUILD)" \
