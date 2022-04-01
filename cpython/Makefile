@@ -3,7 +3,7 @@ include ../Makefile.envs
 
 ROOT=$(abspath .)
 
-PYTHON_CFLAGS=$(CFLAGS_BASE)
+PYTHON_CFLAGS=$(CFLAGS_BASE) -DPY_CALL_TRAMPOLINE
 
 BUILD=$(ROOT)/build/Python-$(PYVERSION)
 INSTALL=$(ROOT)/installs/python-$(PYVERSION)
