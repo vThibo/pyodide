@@ -9,14 +9,10 @@ import ruamel.yaml
 yaml = ruamel.yaml.YAML()
 
 from pathlib import Path
-from sys import version_info
+from sys import version
 
 PYODIDE_ROOT = Path(__file__).parents[2]
-LIB_DIR = (
-    PYODIDE_ROOT / "cpython/installs"
-    f"/python-{version_info.major}.{version_info.minor}.{version_info.micro}"
-    f"/lib/python{version_info.major}.{version_info.minor}"
-)
+LIB_DIR = PYODIDE_ROOT / "cpython/build" f"/Python-{version.split(' ')[0]}" f"/Lib/"
 
 PYTHON_TESTS_YAML = Path(__file__).parent / "python_tests.yaml"
 
@@ -61,12 +57,14 @@ def get_test_name(test) -> str:
 
 
 def update_tests(doc_group, tests):
-    for idx, test in enumerate(list(doc_group)):
+    for idx, test in reversed(list(enumerate(doc_group))):
         if get_test_name(test) not in tests:
+            print("removing", test)
             del doc_group[idx]
 
     for idx, test in enumerate(sorted(tests)):
         if idx == len(doc_group) or get_test_name(doc_group[idx]) != test:
+            print("adding", test)
             doc_group.insert(idx, test)
 
 
