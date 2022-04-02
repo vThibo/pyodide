@@ -97,7 +97,8 @@
     xfail: async
 - test_asyncio.test_subprocess:
     xfail: async
-- test_asyncio.test_taskgroups
+- test_asyncio.test_taskgroups:
+    xfail: calls Webloop.set_debug() which raises NotImplementedError
 - test_asyncio.test_tasks:
     xfail: async
 - test_asyncio.test_threads:
@@ -140,7 +141,9 @@
 - test_call
 - test_capi:
     xfail: hangs
-- test_cgi
+- test_cgi:
+    skip:
+      - test_log # OSError: [Errno 70] Invalid seek
 - test_cgitb
 - test_charmapcodec
 - test_check_c_globals
@@ -295,7 +298,8 @@
     xfail: fork
 - test_filecmp
 - test_fileinput
-- test_fileio
+- test_fileio:
+    segfault-chrome: stack overflow
 - test_fileutils
 - test_finalization
 - test_float
@@ -781,7 +785,8 @@
 - test_type_comments
 - test_typechecks
 - test_types
-- test_typing
+- test_typing:
+    segfault-chrome: stack overflow
 - test_ucn
 - test_unary
 - test_unicode
