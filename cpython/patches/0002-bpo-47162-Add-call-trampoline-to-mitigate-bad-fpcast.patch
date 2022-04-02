@@ -1,0 +1,312 @@
+From ffe3e4d6a5d08f3631a42b2f10157958c118d005 Mon Sep 17 00:00:00 2001
+From: Christian Heimes <christian@python.org>
+Date: Wed, 30 Mar 2022 22:28:33 +0300
+Subject: [PATCH 2/3] bpo-47162: Add call trampoline to mitigate bad fpcasts on
+ Emscripten (GH-32189)
+
+---
+ Include/internal/pycore_object.h              | 27 ++++++++++++++
+ .../2022-03-30-13-13-25.bpo-47162.yDJMUm.rst  |  4 ++
+ Objects/call.c                                |  3 +-
+ Objects/descrobject.c                         | 37 +++++++++++++++----
+ Objects/methodobject.c                        | 20 ++++++++--
+ Python/import.c                               | 12 ++++--
+ Python/importdl.c                             |  6 +--
+ Python/importdl.h                             |  8 ++++
+ 8 files changed, 99 insertions(+), 18 deletions(-)
+ create mode 100644 Misc/NEWS.d/next/Core and Builtins/2022-03-30-13-13-25.bpo-47162.yDJMUm.rst
+
+diff --git a/Include/internal/pycore_object.h b/Include/internal/pycore_object.h
+index 06671b5057..177b06e2dd 100644
+--- a/Include/internal/pycore_object.h
++++ b/Include/internal/pycore_object.h
+@@ -242,6 +242,33 @@ extern PyObject* _PyType_GetSubclasses(PyTypeObject *);
+ 
+ PyAPI_FUNC(PyObject *) _PyObject_LookupSpecial(PyObject *, PyObject *);
+ 
++/* C function call trampolines to mitigate bad function pointer casts.
++ *
++ * Typical native ABIs ignore additional arguments or fill in missing
++ * values with 0/NULL in function pointer cast. Compilers do not show
++ * warnings when a function pointer is explicitly casted to an
++ * incompatible type.
++ *
++ * Bad fpcasts are an issue in WebAssembly. WASM's indirect_call has strict
++ * function signature checks. Argument count, types, and return type must
++ * match.
++ *
++ * Third party code unintentionally rely on problematic fpcasts. The call
++ * trampoline mitigates common occurences of bad fpcasts on Emscripten.
++ */
++#if defined(__EMSCRIPTEN__) && defined(PY_CALL_TRAMPOLINE)
++#define _PyCFunction_TrampolineCall(meth, self, args) \
++    _PyCFunctionWithKeywords_TrampolineCall( \
++        (*(PyCFunctionWithKeywords)(void(*)(void))meth), self, args, NULL)
++extern PyObject* _PyCFunctionWithKeywords_TrampolineCall(
++    PyCFunctionWithKeywords meth, PyObject *, PyObject *, PyObject *);
++#else
++#define _PyCFunction_TrampolineCall(meth, self, args) \
++    (meth)((self), (args))
++#define _PyCFunctionWithKeywords_TrampolineCall(meth, self, args, kw) \
++    (meth)((self), (args), (kw))
++#endif // __EMSCRIPTEN__ && PY_CALL_TRAMPOLINE
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/Misc/NEWS.d/next/Core and Builtins/2022-03-30-13-13-25.bpo-47162.yDJMUm.rst b/Misc/NEWS.d/next/Core and Builtins/2022-03-30-13-13-25.bpo-47162.yDJMUm.rst
+new file mode 100644
+index 0000000000..7ecbfb37cd
+--- /dev/null
++++ b/Misc/NEWS.d/next/Core and Builtins/2022-03-30-13-13-25.bpo-47162.yDJMUm.rst	
+@@ -0,0 +1,4 @@
++WebAssembly cannot deal with bad function pointer casts (different count
++or types of arguments). Python can now use call trampolines to mitigate
++the problem. Define :c:macro:`PY_CALL_TRAMPOLINE` to enable call
++trampolines.
+diff --git a/Objects/call.c b/Objects/call.c
+index cf8fa1eeff..448476223a 100644
+--- a/Objects/call.c
++++ b/Objects/call.c
+@@ -211,7 +211,8 @@ _PyObject_MakeTpCall(PyThreadState *tstate, PyObject *callable,
+     PyObject *result = NULL;
+     if (_Py_EnterRecursiveCall(tstate, " while calling a Python object") == 0)
+     {
+-        result = call(callable, argstuple, kwdict);
++        result = _PyCFunctionWithKeywords_TrampolineCall(
++            (PyCFunctionWithKeywords)call, callable, argstuple, kwdict);
+         _Py_LeaveRecursiveCall(tstate);
+     }
+ 
+diff --git a/Objects/descrobject.c b/Objects/descrobject.c
+index 2d4cfb5b7a..dd71087f2e 100644
+--- a/Objects/descrobject.c
++++ b/Objects/descrobject.c
+@@ -13,6 +13,25 @@ class property "propertyobject *" "&PyProperty_Type"
+ [clinic start generated code]*/
+ /*[clinic end generated code: output=da39a3ee5e6b4b0d input=556352653fd4c02e]*/
+ 
++// see pycore_object.h
++#if defined(__EMSCRIPTEN__) && defined(PY_CALL_TRAMPOLINE)
++#include <emscripten.h>
++EM_JS(PyObject*, descr_set_trampoline_call, (setter set, PyObject *obj, PyObject *value, void *closure), {
++    return wasmTable.get(set)(obj, value, closure);
++});
++
++EM_JS(PyObject*, descr_get_trampoline_call, (getter get, PyObject *obj, void *closure), {
++    return wasmTable.get(get)(obj, closure);
++});
++#else
++#define descr_set_trampoline_call(set, obj, value, closure) \
++    (set)((obj), (value), (closure))
++
++#define descr_get_trampoline_call(get, obj, closure) \
++    (get)((obj), (closure))
++
++#endif // __EMSCRIPTEN__ && PY_CALL_TRAMPOLINE
++
+ static void
+ descr_dealloc(PyDescrObject *descr)
+ {
+@@ -180,7 +199,8 @@ getset_get(PyGetSetDescrObject *descr, PyObject *obj, PyObject *type)
+         return NULL;
+     }
+     if (descr->d_getset->get != NULL)
+-        return descr->d_getset->get(obj, descr->d_getset->closure);
++        return descr_get_trampoline_call(
++            descr->d_getset->get, obj, descr->d_getset->closure);
+     PyErr_Format(PyExc_AttributeError,
+                  "attribute '%V' of '%.100s' objects is not readable",
+                  descr_name((PyDescrObject *)descr), "?",
+@@ -232,8 +252,9 @@ getset_set(PyGetSetDescrObject *descr, PyObject *obj, PyObject *value)
+         return -1;
+     }
+     if (descr->d_getset->set != NULL) {
+-        return descr->d_getset->set(obj, value,
+-                                    descr->d_getset->closure);
++        return descr_set_trampoline_call(
++            descr->d_getset->set, obj, value,
++            descr->d_getset->closure);
+     }
+     PyErr_Format(PyExc_AttributeError,
+                  "attribute '%V' of '%.100s' objects is not writable",
+@@ -306,7 +327,8 @@ method_vectorcall_VARARGS(
+         Py_DECREF(argstuple);
+         return NULL;
+     }
+-    PyObject *result = meth(args[0], argstuple);
++    PyObject *result = _PyCFunction_TrampolineCall(
++        meth, args[0], argstuple);
+     Py_DECREF(argstuple);
+     _Py_LeaveRecursiveCall(tstate);
+     return result;
+@@ -339,7 +361,8 @@ method_vectorcall_VARARGS_KEYWORDS(
+     if (meth == NULL) {
+         goto exit;
+     }
+-    result = meth(args[0], argstuple, kwdict);
++    result = _PyCFunctionWithKeywords_TrampolineCall(
++        meth, args[0], argstuple, kwdict);
+     _Py_LeaveRecursiveCall(tstate);
+ exit:
+     Py_DECREF(argstuple);
+@@ -427,7 +450,7 @@ method_vectorcall_NOARGS(
+     if (meth == NULL) {
+         return NULL;
+     }
+-    PyObject *result = meth(args[0], NULL);
++    PyObject *result = _PyCFunction_TrampolineCall(meth, args[0], NULL);
+     _Py_LeaveRecursiveCall(tstate);
+     return result;
+ }
+@@ -455,7 +478,7 @@ method_vectorcall_O(
+     if (meth == NULL) {
+         return NULL;
+     }
+-    PyObject *result = meth(args[0], args[1]);
++    PyObject *result = _PyCFunction_TrampolineCall(meth, args[0], args[1]);
+     _Py_LeaveRecursiveCall(tstate);
+     return result;
+ }
+diff --git a/Objects/methodobject.c b/Objects/methodobject.c
+index 93fac22ec4..8bcb1e0fad 100644
+--- a/Objects/methodobject.c
++++ b/Objects/methodobject.c
+@@ -483,7 +483,8 @@ cfunction_vectorcall_NOARGS(
+     if (meth == NULL) {
+         return NULL;
+     }
+-    PyObject *result = meth(PyCFunction_GET_SELF(func), NULL);
++    PyObject *result = _PyCFunction_TrampolineCall(
++        meth, PyCFunction_GET_SELF(func), NULL);
+     _Py_LeaveRecursiveCall(tstate);
+     return result;
+ }
+@@ -510,7 +511,8 @@ cfunction_vectorcall_O(
+     if (meth == NULL) {
+         return NULL;
+     }
+-    PyObject *result = meth(PyCFunction_GET_SELF(func), args[0]);
++    PyObject *result = _PyCFunction_TrampolineCall(
++        meth, PyCFunction_GET_SELF(func), args[0]);
+     _Py_LeaveRecursiveCall(tstate);
+     return result;
+ }
+@@ -537,7 +539,9 @@ cfunction_call(PyObject *func, PyObject *args, PyObject *kwargs)
+ 
+     PyObject *result;
+     if (flags & METH_KEYWORDS) {
+-        result = (*(PyCFunctionWithKeywords)(void(*)(void))meth)(self, args, kwargs);
++        result = _PyCFunctionWithKeywords_TrampolineCall(
++            (*(PyCFunctionWithKeywords)(void(*)(void))meth),
++            self, args, kwargs);
+     }
+     else {
+         if (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0) {
+@@ -546,7 +550,15 @@ cfunction_call(PyObject *func, PyObject *args, PyObject *kwargs)
+                           ((PyCFunctionObject*)func)->m_ml->ml_name);
+             return NULL;
+         }
+-        result = meth(self, args);
++        result = _PyCFunction_TrampolineCall(meth, self, args);
+     }
+     return _Py_CheckFunctionResult(tstate, func, result, NULL);
+ }
++
++#if defined(__EMSCRIPTEN__) && defined(PY_CALL_TRAMPOLINE)
++#include <emscripten.h>
++
++EM_JS(PyObject*, _PyCFunctionWithKeywords_TrampolineCall, (PyCFunctionWithKeywords func, PyObject *self, PyObject *args, PyObject *kw), {
++    return wasmTable.get(func)(self, args, kw);
++});
++#endif
+diff --git a/Python/import.c b/Python/import.c
+index 982ec8cfe6..4b6d6d1682 100644
+--- a/Python/import.c
++++ b/Python/import.c
+@@ -527,7 +527,7 @@ import_find_extension(PyThreadState *tstate, PyObject *name,
+     else {
+         if (def->m_base.m_init == NULL)
+             return NULL;
+-        mod = def->m_base.m_init();
++        mod = _PyImport_InitFunc_TrampolineCall(def->m_base.m_init);
+         if (mod == NULL)
+             return NULL;
+         if (PyObject_SetItem(modules, name, mod) == -1) {
+@@ -958,6 +958,13 @@ PyImport_GetImporter(PyObject *path)
+     return get_path_importer(tstate, path_importer_cache, path_hooks, path);
+ }
+ 
++#if defined(__EMSCRIPTEN__) && defined(PY_CALL_TRAMPOLINE)
++#include <emscripten.h>
++EM_JS(PyObject*, _PyImport_InitFunc_TrampolineCall, (PyModInitFunction func), {
++    return wasmTable.get(func)();
++});
++#endif // __EMSCRIPTEN__ && PY_CALL_TRAMPOLINE
++
+ static PyObject*
+ create_builtin(PyThreadState *tstate, PyObject *name, PyObject *spec)
+ {
+@@ -973,8 +980,7 @@ create_builtin(PyThreadState *tstate, PyObject *name, PyObject *spec)
+                 /* Cannot re-init internal module ("sys" or "builtins") */
+                 return PyImport_AddModuleObject(name);
+             }
+-
+-            mod = (*p->initfunc)();
++            mod = _PyImport_InitFunc_TrampolineCall(*p->initfunc);
+             if (mod == NULL) {
+                 return NULL;
+             }
+diff --git a/Python/importdl.c b/Python/importdl.c
+index f66c6013d2..870ae27300 100644
+--- a/Python/importdl.c
++++ b/Python/importdl.c
+@@ -102,7 +102,7 @@ _PyImport_LoadDynamicModuleWithSpec(PyObject *spec, FILE *fp)
+     const char *oldcontext;
+     dl_funcptr exportfunc;
+     PyModuleDef *def;
+-    PyObject *(*p0)(void);
++    PyModInitFunction p0;
+ 
+     name_unicode = PyObject_GetAttrString(spec, "name");
+     if (name_unicode == NULL) {
+@@ -157,7 +157,7 @@ _PyImport_LoadDynamicModuleWithSpec(PyObject *spec, FILE *fp)
+         goto error;
+     }
+ 
+-    p0 = (PyObject *(*)(void))exportfunc;
++    p0 = (PyModInitFunction)exportfunc;
+ 
+     /* Package context is needed for single-phase init */
+     oldcontext = _Py_PackageContext;
+@@ -166,7 +166,7 @@ _PyImport_LoadDynamicModuleWithSpec(PyObject *spec, FILE *fp)
+         _Py_PackageContext = oldcontext;
+         goto error;
+     }
+-    m = p0();
++    m = _PyImport_InitFunc_TrampolineCall(p0);
+     _Py_PackageContext = oldcontext;
+ 
+     if (m == NULL) {
+diff --git a/Python/importdl.h b/Python/importdl.h
+index 9847652b1f..26d18b626d 100644
+--- a/Python/importdl.h
++++ b/Python/importdl.h
+@@ -10,6 +10,14 @@ extern const char *_PyImport_DynLoadFiletab[];
+ 
+ extern PyObject *_PyImport_LoadDynamicModuleWithSpec(PyObject *spec, FILE *);
+ 
++typedef PyObject *(*PyModInitFunction)(void);
++
++#if defined(__EMSCRIPTEN__) && defined(PY_CALL_TRAMPOLINE)
++extern PyObject *_PyImport_InitFunc_TrampolineCall(PyModInitFunction func);
++#else
++#define _PyImport_InitFunc_TrampolineCall(func) (func)()
++#endif
++
+ /* Max length of module suffix searched for -- accommodates "module.slb" */
+ #define MAXSUFFIXSIZE 12
+ 
+-- 
+2.25.1
+
