@@ -1,4 +1,4 @@
-From dbdf020b31d061cb5bc275d1fa9d737f35ccc1ef Mon Sep 17 00:00:00 2001
+From 378889779d5d6a3b567af71b416d37b3c60b46af Mon Sep 17 00:00:00 2001
 From: Hood Chatham <roberthoodchatham@gmail.com>
 Date: Fri, 1 Apr 2022 18:55:11 -0700
 Subject: [PATCH 3/3] bpo-47197: Fix void return type handling in ctypes
@@ -17,7 +17,7 @@ on Emscripten targets.
  2 files changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/Modules/_ctypes/callbacks.c b/Modules/_ctypes/callbacks.c
-index bb59456a73..334a81c9c3 100644
+index bb59456a73..7dd1f99021 100644
 --- a/Modules/_ctypes/callbacks.c
 +++ b/Modules/_ctypes/callbacks.c
 @@ -399,7 +399,7 @@ CThunkObject *_ctypes_alloc_callback(PyObject *callable,
@@ -25,7 +25,7 @@ index bb59456a73..334a81c9c3 100644
      result = ffi_prep_cif(&p->cif, cc,
                            Py_SAFE_DOWNCAST(nargs, Py_ssize_t, int),
 -                          _ctypes_get_ffi_type(restype),
-+                          p->restype,
++                          p->ffi_restype,
                            &p->atypes[0]);
      if (result != FFI_OK) {
          PyErr_Format(PyExc_RuntimeError,
