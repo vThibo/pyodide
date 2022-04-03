@@ -198,10 +198,6 @@
 - test_ctypes:
     skip:
       - test_callback_too_many_args
-      - test_callback_large_struct
-      - CFunctions
-      - test_struct_return_2H
-      - FunctionTestCase
     skip-node:
       - test_longlong_callbacks
       - test_longdouble
