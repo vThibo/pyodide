@@ -1,0 +1,25 @@
+From 544cfcaf94aff9b84778fc7e23f644d0e68a9a90 Mon Sep 17 00:00:00 2001
+From: Hood Chatham <roberthoodchatham@gmail.com>
+Date: Sat, 2 Apr 2022 21:23:03 -0700
+Subject: [PATCH] Missed one
+
+---
+ Modules/_testmultiphase.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Modules/_testmultiphase.c b/Modules/_testmultiphase.c
+index e9a37a0191..1b4f58eb1c 100644
+--- a/Modules/_testmultiphase.c
++++ b/Modules/_testmultiphase.c
+@@ -796,7 +796,7 @@ static PyModuleDef def_exec_raise = TEST_MODULE_DEF(
+     "_testmultiphase_exec_raise", slots_exec_raise, NULL);
+ 
+ PyMODINIT_FUNC
+-PyInit__testmultiphase_exec_raise(PyObject *mod)
++PyInit__testmultiphase_exec_raise(void)
+ {
+     return PyModuleDef_Init(&def_exec_raise);
+ }
+-- 
+2.25.1
+
