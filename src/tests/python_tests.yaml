@@ -196,12 +196,8 @@
 - test_csv
 - test_ctypes:
     skip:
+      # See https://bugs.python.org/issue47208
       - test_callback_too_many_args
-    skip-node:
-      - test_longlong_callbacks
-      - test_longdouble
-      - test_longlong
-      - test_ulonglong
 - test_curses
 - test_dataclasses
 - test_datetime:
