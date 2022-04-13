@@ -1,4 +1,4 @@
-export PYVERSION ?= 3.11.0a6
+export PYVERSION ?= 3.11.0a7
 export PYODIDE_EMSCRIPTEN_VERSION ?= 2.0.27
 
 export PLATFORM_TRIPLET=wasm32-emscripten
