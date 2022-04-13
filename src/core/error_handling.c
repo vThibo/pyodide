@@ -10,9 +10,6 @@
 static PyObject* tbmod = NULL;
 
 _Py_IDENTIFIER(format_exception);
-_Py_IDENTIFIER(last_type);
-_Py_IDENTIFIER(last_value);
-_Py_IDENTIFIER(last_traceback);
 
 EM_JS(void, console_error, (char* msg), {
   let jsmsg = UTF8ToString(msg);
@@ -83,9 +80,9 @@ fetch_and_normalize_exception(PyObject** type,
 static void
 store_sys_last_exception(PyObject* type, PyObject* value, PyObject* traceback)
 {
-  _PySys_SetObjectId(&PyId_last_type, type);
-  _PySys_SetObjectId(&PyId_last_value, value);
-  _PySys_SetObjectId(&PyId_last_traceback, traceback);
+  PySys_SetObject("type", type);
+  PySys_SetObject("value", value);
+  PySys_SetObject("traceback", traceback);
 }
 
 /**
@@ -109,11 +106,11 @@ restore_sys_last_exception(void* value)
 {
   bool success = false;
   FAIL_IF_NULL(value);
-  PyObject* last_type = _PySys_GetObjectId(&PyId_last_type);
+  PyObject* last_type = PySys_GetObject("last_type");
   FAIL_IF_NULL(last_type);
-  PyObject* last_value = _PySys_GetObjectId(&PyId_last_value);
+  PyObject* last_value = PySys_GetObject("last_value");
   FAIL_IF_NULL(last_value);
-  PyObject* last_traceback = _PySys_GetObjectId(&PyId_last_traceback);
+  PyObject* last_traceback = PySys_GetObject("last_traceback");
   FAIL_IF_NULL(last_traceback);
   if (value != last_value) {
     return 0;
