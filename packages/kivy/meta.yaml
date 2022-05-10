@@ -5,9 +5,9 @@ source:
   path: /src/kivy
   #url: https://files.pythonhosted.org/packages/7f/33/fe160fff6b3a765ded9df3b9260fc95f2cc477466cc87d8e0f6b5e326a94/Kivy-2.1.0.tar.gz
   sha256: 3a16f3ba3b70d5e7943d7ee5c4cbbd52bc4675f38da4bf2b3005c1639d6c04b3
-#build:
-  #cflags: -sUSE_SDL=2 -sUSE_SDL_MIXER=2 -sUSE_SDL_IMAGE=2
-  #ldflags: -sUSE_SDL=2 -sUSE_SDL_MIXER=2 -sUSE_SDL_IMAGE=2
+build:
+  cflags: -sUSE_SDL=2 -sUSE_SDL_MIXER=2 -sUSE_SDL_IMAGE=2
+  ldflags: -sUSE_SDL=2 -sUSE_SDL_MIXER=2 -sUSE_SDL_IMAGE=2
 test:
   imports:
     - kivy

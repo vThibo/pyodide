@@ -1,4 +1,4 @@
 [submodule "kivy"]
 	path = kivy
-	url = https://github.com/kivy/kivy
+	url = https://github.com/tytgatlieven/kivy
 	branch = stable
